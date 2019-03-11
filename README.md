@@ -1,6 +1,6 @@
 # 6502
 
-A MOS Technology 6502 emulator written in C. It was made with readability in mind. You can use it easily in your own projects (see m6502_tests.c for an example) just by including m6502.c and m6502.h.
+A MOS Technology 6502 emulator written in C99. It was made with readability in mind. You can use it easily in your own projects (see m6502_tests.c for an example) just by including m6502.c and m6502.h.
 
 Note that undocumented instructions are not supported, and cycles are counted at instruction level. You can disable decimal mode by setting `enable_bcd` to false.
 
