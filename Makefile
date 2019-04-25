@@ -1,18 +1,19 @@
-CC = cc
+bin = m6502_tests
+src = m6502.c m6502_tests.c
+obj = $(src:.c=.o)
+
 CFLAGS = -g -Wall -Wextra -O2 -std=c99 -pedantic
+LDFLAGS =
 
-.PHONY: clean
+.PHONY: all clean
 
-default: m6502_tests
+all: $(bin)
 
-m6502_tests: m6502.o m6502_tests.o
-	$(CC) $(CFLAGS) -o m6502_tests m6502.o m6502_tests.o
+$(bin): $(obj)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 # ehbasic: m6502.o ehbasic_interpreter.o
 # 	$(CC) $(CFLAGS) -o ehbasic m6502.o ehbasic_interpreter.o
 
-.c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
-
 clean:
-	rm -f m6502_tests ehbasic *.o
+	-rm $(bin) $(obj)
