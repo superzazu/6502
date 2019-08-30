@@ -1,0 +1,434 @@
+00001    ; Exercise all instructions and all cases of page crossing
+00002    ; For discussion, please see http://forum.6502.org/viewtopic.php?f=8&t=3340
+00003    ;
+00004    ; There's no timing done in this code: use a hardware timing
+00005    ; or instrumentation in your emulator of choice.
+00006    ;
+00007    ; BRK is not included for portability reasons.
+00008    ;
+00009    ; Assembly syntax is for Michal Kowalski's simulator as found at
+00010    ;    www.exifpro.com/utils.html
+00011    ;
+00012    ; Using version 1.2.11 of that program, this version executes in
+00013    ;    1130 clocks
+00014    ; But visual6502, which should be a more trusted reference, executes in
+00015    ;    1141 clocks
+00016    ; See http://goo.gl/956Cxi
+00017    ;
+00018    ; When modifying, take care that all far branches still cross a page boundary.
+00019    ; See labels 'far1' and so on.
+00020    ;
+00021    ; Using http://www.llx.com/~nparker/a2/opcodes.html as instruction reference
+00022    ;
+00023    ; Copyright (C) 2015  Ed Spittles
+00024    ;
+00025    ;    This program is free software; you can redistribute it and/or modify
+00026    ;    it under the terms of the GNU General Public License as published by
+00027    ;    the Free Software Foundation; either version 2 of the License, or
+00028    ;    (at your option) any later version.
+00029    ;
+00030    ;    This program is distributed in the hope that it will be useful,
+00031    ;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+00032    ;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+00033    ;    GNU General Public License for more details.
+00034    ;
+00035    ;    You should have received a copy of the GNU General Public License along
+00036    ;    with this program; if not, write to the Free Software Foundation, Inc.,
+00037    ;    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+00038    
+00039    ; any nonzero byte should work here so long as we avoid poking delicate hardware
+00040      0017             zdummy=$17
+00041      1717             dummy=$1717
+00042    
+00043    1000                .ORG $1000
+00044    start:
+00045    
+00046    init:
+00047    1000  A2 FF         LDX #$FF
+00048    1002  9A            TXS
+00049    1003  A2 01         LDX #1
+00050    1005  86 17         STX zdummy    ; zdummy points to $0101
+00051    1007  86 18         STX zdummy+1
+00052    1009  86 16         STX zdummy-1  ; zdummy-1 also points to $0101 - that's zdummy,X with X=$FF
+00053    
+00054    transfers:
+00055    100B  8A            TXA
+00056    100C  A8            TAY
+00057    100D  98            TYA
+00058    100E  BA            TSX
+00059    100F  AA            TAX
+00060     
+00061    arithmetic:
+00062    1010  A2 00         LDX #0 ; non-page-crossing
+00063    1012  A0 00         LDY #0
+00064    1014  01 17         ORA (zdummy,X)
+00065    1016  05 17         ORA zdummy
+00066    1018  09 00         ORA #0
+00067    101A  0D 17 17      ORA dummy
+00068    101D  11 17         ORA (zdummy),Y
+00069    101F  15 17         ORA zdummy,X
+00070    1021  1D 17 17      ORA dummy,X
+00071    1024  19 17 17      ORA dummy,Y
+00072    1027  CA            DEX ; page crossing or wrapping
+00073    1028  88            DEY
+00074    1029  01 17         ORA (zdummy,X)
+00075    102B  11 17         ORA (zdummy),Y
+00076    102D  15 17         ORA zdummy,X
+00077    102F  1D 17 17      ORA dummy,X
+00078    1032  19 17 17      ORA dummy,Y
+00079    
+00080    1035  E8            INX ; non-page-crossing
+00081    1036  C8            INY
+00082    1037  21 17         AND (zdummy,X)
+00083    1039  25 17         AND zdummy
+00084    103B  29 00         AND #0
+00085    103D  2D 17 17      AND dummy
+00086    1040  31 17         AND (zdummy),Y
+00087    1042  35 17         AND zdummy,X
+00088    1044  3D 17 17      AND dummy,X
+00089    1047  39 17 17      AND dummy,Y
+00090    104A  CA            DEX ; page crossing or wrapping
+00091    104B  88            DEY
+00092    104C  21 17         AND (zdummy,X)
+00093    104E  31 17         AND (zdummy),Y
+00094    1050  35 17         AND zdummy,X
+00095    1052  3D 17 17      AND dummy,X
+00096    1055  39 17 17      AND dummy,Y
+00097    
+00098    1058  A2 00         LDX #0 ; non-page-crossing
+00099    105A  A0 00         LDY #0
+00100    105C  41 17         EOR (zdummy,X)
+00101    105E  45 17         EOR zdummy
+00102    1060  49 00         EOR #0
+00103    1062  4D 17 17      EOR dummy
+00104    1065  51 17         EOR (zdummy),Y
+00105    1067  55 17         EOR zdummy,X
+00106    1069  5D 17 17      EOR dummy,X
+00107    106C  59 17 17      EOR dummy,Y
+00108    106F  CA            DEX ; page crossing or wrapping
+00109    1070  88            DEY
+00110    1071  41 17         EOR (zdummy,X)
+00111    1073  51 17         EOR (zdummy),Y
+00112    1075  55 17         EOR zdummy,X
+00113    1077  5D 17 17      EOR dummy,X
+00114    107A  59 17 17      EOR dummy,Y
+00115    
+00116    107D  A2 00         LDX #0 ; non-page-crossing
+00117    107F  A0 00         LDY #0
+00118    1081  61 17         ADC (zdummy,X)
+00119    1083  65 17         ADC zdummy
+00120    1085  69 00         ADC #0
+00121    1087  6D 17 17      ADC dummy
+00122    108A  71 17         ADC (zdummy),Y
+00123    108C  75 17         ADC zdummy,X
+00124    108E  7D 17 17      ADC dummy,X
+00125    1091  79 17 17      ADC dummy,Y
+00126    1094  CA            DEX ; page crossing or wrapping
+00127    1095  88            DEY
+00128    1096  61 17         ADC (zdummy,X)
+00129    1098  71 17         ADC (zdummy),Y
+00130    109A  75 17         ADC zdummy,X
+00131    109C  7D 17 17      ADC dummy,X
+00132    109F  79 17 17      ADC dummy,Y
+00133    
+00134    10A2  A2 00         LDX #0 ; non-page-crossing
+00135    10A4  A0 00         LDY #0
+00136    10A6  A9 01         LDA #1 ; don't break our pointer in zdummy
+00137    10A8  81 17         STA (zdummy,X)
+00138    10AA  85 17         STA zdummy
+00139    10AC  8D 17 17      STA dummy
+00140    10AF  91 17         STA (zdummy),Y
+00141    10B1  95 17         STA zdummy,X
+00142    10B3  9D 17 17      STA dummy,X
+00143    10B6  99 17 17      STA dummy,Y
+00144    10B9  CA            DEX ; page crossing or wrapping
+00145    10BA  88            DEY
+00146    10BB  81 17         STA (zdummy,X)
+00147    10BD  91 17         STA (zdummy),Y
+00148    10BF  95 17         STA zdummy,X
+00149    10C1  9D 17 17      STA dummy,X
+00150    10C4  99 17 17      STA dummy,Y
+00151    
+00152    10C7  A2 00         LDX #0 ; non-page-crossing
+00153    10C9  A0 00         LDY #0
+00154    10CB  A1 17         LDA (zdummy,X)
+00155    10CD  A5 17         LDA zdummy
+00156    10CF  A9 00         LDA #0
+00157    10D1  AD 17 17      LDA dummy
+00158    10D4  B1 17         LDA (zdummy),Y
+00159    10D6  B5 17         LDA zdummy,X
+00160    10D8  BD 17 17      LDA dummy,X
+00161    10DB  B9 17 17      LDA dummy,Y
+00162    10DE  CA            DEX ; page crossing or wrapping
+00163    10DF  88            DEY
+00164    10E0  A1 17         LDA (zdummy,X)
+00165    10E2  B1 17         LDA (zdummy),Y
+00166    10E4  B5 17         LDA zdummy,X
+00167    10E6  BD 17 17      LDA dummy,X
+00168    10E9  B9 17 17      LDA dummy,Y
+00169    
+00170    10EC  A2 00         LDX #0 ; non-page-crossing
+00171    10EE  A0 00         LDY #0
+00172    10F0  C1 17         CMP (zdummy,X)
+00173    10F2  C5 17         CMP zdummy
+00174    10F4  C9 00         CMP #0
+00175    10F6  CD 17 17      CMP dummy
+00176    10F9  D1 17         CMP (zdummy),Y
+00177    10FB  D5 17         CMP zdummy,X
+00178    10FD  DD 17 17      CMP dummy,X
+00179    1100  D9 17 17      CMP dummy,Y
+00180    1103  CA            DEX ; page crossing or wrapping
+00181    1104  88            DEY
+00182    1105  C1 17         CMP (zdummy,X)
+00183    1107  D1 17         CMP (zdummy),Y
+00184    1109  D5 17         CMP zdummy,X
+00185    110B  DD 17 17      CMP dummy,X
+00186    110E  D9 17 17      CMP dummy,Y
+00187    
+00188    1111  A2 00         LDX #0 ; non-page-crossing
+00189    1113  A0 00         LDY #0
+00190    1115  E1 17         SBC (zdummy,X)
+00191    1117  E5 17         SBC zdummy
+00192    1119  E9 00         SBC #0
+00193    111B  ED 17 17      SBC dummy
+00194    111E  F1 17         SBC (zdummy),Y
+00195    1120  F5 17         SBC zdummy,X
+00196    1122  FD 17 17      SBC dummy,X
+00197    1125  F9 17 17      SBC dummy,Y
+00198    1128  CA            DEX ; page crossing or wrapping
+00199    1129  88            DEY
+00200    112A  E1 17         SBC (zdummy,X)
+00201    112C  F1 17         SBC (zdummy),Y
+00202    112E  F5 17         SBC zdummy,X
+00203    1130  FD 17 17      SBC dummy,X
+00204    1133  F9 17 17      SBC dummy,Y
+00205    
+00206    rmw: ; may need to restore our zp pointer value
+00207         ; therefore perform op then inverse op
+00208    1136  A2 00         LDX #0 ; non-page-crossing
+00209    1138  06 17         ASL zdummy
+00210    113A  46 17         LSR zdummy
+00211    113C  0E 17 17      ASL dummy
+00212    113F  4E 17 17      LSR dummy
+00213    1142  16 17         ASL zdummy,X
+00214    1144  56 17         LSR zdummy,X
+00215    1146  1E 17 17      ASL dummy,X
+00216    1149  5E 17 17      LSR dummy,X
+00217    114C  CA            DEX ; page crossing or wrapping
+00218    114D  16 17         ASL zdummy,X
+00219    114F  56 17         LSR zdummy,X
+00220    1151  1E 17 17      ASL dummy,X
+00221    1154  5E 17 17      LSR dummy,X
+00222    
+00223    1157  A2 00         LDX #0 ; non-page-crossing
+00224    1159  26 17         ROL zdummy
+00225    115B  66 17         ROR zdummy
+00226    115D  2E 17 17      ROL dummy
+00227    1160  6E 17 17      ROR dummy
+00228    1163  36 17         ROL zdummy,X
+00229    1165  76 17         ROR zdummy,X
+00230    1167  3E 17 17      ROL dummy,X
+00231    116A  7E 17 17      ROR dummy,X
+00232    116D  CA            DEX ; page crossing or wrapping
+00233    116E  36 17         ROL zdummy,X
+00234    1170  76 17         ROR zdummy,X
+00235    1172  3E 17 17      ROL dummy,X
+00236    1175  7E 17 17      ROR dummy,X
+00237    
+00238     ; use Y indexing for LDX and STX
+00239    1178  A0 00         LDY #0 ; non-page-crossing
+00240    117A  A6 17         LDX zdummy
+00241    117C  86 17         STX zdummy
+00242    117E  AE 17 17      LDX dummy
+00243    1181  8E 17 17      STX dummy
+00244    1184  B6 17         LDX zdummy,Y
+00245    1186  96 17         STX zdummy,Y
+00246    1188  BE 17 17      LDX dummy,Y
+00247    118B  88            DEY ; page crossing or wrapping
+00248    118C  B6 17         LDX zdummy,Y
+00249    118E  96 17         STX zdummy,Y
+00250    1190  BE 17 17      LDX dummy,Y
+00251    
+00252    1193  A2 00         LDX #0 ; non-page-crossing
+00253    1195  C6 17         DEC zdummy
+00254    1197  E6 17         INC zdummy
+00255    1199  CE 17 17      DEC dummy
+00256    119C  EE 17 17      INC dummy
+00257    119F  D6 17         DEC zdummy,X
+00258    11A1  F6 17         INC zdummy,X
+00259    11A3  DE 17 17      DEC dummy,X
+00260    11A6  FE 17 17      INC dummy,X
+00261    11A9  CA            DEX ; page crossing or wrapping
+00262    11AA  D6 17         DEC zdummy,X
+00263    11AC  F6 17         INC zdummy,X
+00264    11AE  DE 17 17      DEC dummy,X
+00265    11B1  FE 17 17      INC dummy,X
+00266    
+00267    branches: ; forward, backward, both with and without a page crossing, also not takens
+00268    11B4  A2 00         LDX #0
+00269    11B6  10 02         BPL br1a ; forward, no page crossing
+00270    br1b:
+00271    11B8  10 5C         BPL far1 ; forward, page crossing
+00272    br1a:
+00273    11BA  30 FE         BMI br1a ; not taken
+00274    11BC  10 FA         BPL br1b ; backward
+00275    return1:
+00276    
+00277    11BE  F0 02         BEQ br2a ; forward, no page crossing
+00278    br2b:
+00279    11C0  F0 56         BEQ far2 ; forward, page crossing
+00280    br2a:
+00281    11C2  D0 FE         BNE br2a ; not taken
+00282    11C4  F0 FA         BEQ br2b ; backward
+00283    return2:
+00284    
+00285    11C6  A2 FF         LDX #$FF
+00286    11C8  30 02         BMI br3a ; forward, no page crossing
+00287    br3b:
+00288    11CA  30 4E         BMI far3 ; forward, page crossing
+00289    br3a:
+00290    11CC  10 FE         BPL br3a ; not taken
+00291    11CE  30 FA         BMI br3b ; backward
+00292    return3:
+00293    
+00294    11D0  D0 02         BNE br4a ; forward, no page crossing
+00295    br4b:
+00296    11D2  D0 48         BNE far4 ; forward, page crossing
+00297    br4a:
+00298    11D4  F0 FE         BEQ br4a ; not taken
+00299    11D6  D0 FA         BNE br4b ; backward
+00300    return4:
+00301    
+00302    11D8  18            CLC
+00303    11D9  90 02         BCC br5a ; forward, no page crossing
+00304    br5b:
+00305    11DB  90 41         BCC far5 ; forward, page crossing
+00306    br5a:
+00307    11DD  B0 FE         BCS br5a ; not taken
+00308    11DF  90 FA         BCC br5b ; backward
+00309    return5:
+00310    
+00311    11E1  38            SEC
+00312    11E2  B0 02         BCS br6a ; forward, no page crossing
+00313    br6b:
+00314    11E4  B0 3A         BCS far6 ; forward, page crossing
+00315    br6a:
+00316    11E6  90 FE         BCC br6a ; not taken
+00317    11E8  B0 FA         BCS br6b ; backward
+00318    return6:
+00319    
+00320    11EA  B8            CLV
+00321    11EB  50 02         BVC br7a ; forward, no page crossing
+00322    br7b:
+00323    11ED  50 33         BVC far7 ; forward, page crossing
+00324    br7a:
+00325    11EF  70 FE         BVS br7a ; not taken
+00326    11F1  50 FA         BVC br7b ; backward
+00327    return7:
+00328    
+00329    11F3  A9 7F         LDA #$7F
+00330    11F5  69 7F         ADC #$7F ; set the overflow flag
+00331    11F7  70 02         BVS br8a ; forward, no page crossing
+00332    br8b:
+00333    11F9  70 29         BVS far8 ; forward, page crossing
+00334    br8a:
+00335    11FB  50 FE         BVC br8a ; not taken
+00336    11FD  70 FA         BVS br8b ; backward
+00337    return8:
+00338    
+00339    implicit:
+00340    11FF  C8            INY
+00341    1200  88            DEY
+00342    1201  E8            INX
+00343    1202  CA            DEX
+00344    1203  EA            NOP
+00345     
+00346    accumulator:
+00347    1204  0A            ASL
+00348    1205  2A            ROL
+00349    1206  4A            LSR
+00350    1207  6A            ROR
+00351    
+00352    jsrandmore:
+00353    1208  20 26 12      JSR trampoline ; more instructions tested at destination
+00354    
+00355    stack:
+00356    120B  48            PHA
+00357    120C  68            PLA
+00358    120D  08            PHP
+00359    120E  28            PLP
+00360    
+00361    flags:
+00362    120F  78            SEI
+00363    1210  58            CLI
+00364    1211  F8            SED
+00365    1212  D8            CLD
+00366    
+00367    hopoverbackbranches:
+00368    1213  4C 3B 12      JMP continue
+00369    
+00370    farbackbranches: ; reached with a page-crossing forward branch, returning the same way
+00371    far1:
+00372    1216  10 A6         BPL return1
+00373    far2:
+00374    1218  F0 AC         BEQ return2
+00375    far3:
+00376    121A  30 B4         BMI return3
+00377    far4:
+00378    121C  D0 BA         BNE return4
+00379    far5:
+00380    121E  90 C1         BCC return5
+00381    far6:
+00382    1220  B0 C8         BCS return6
+00383    far7:
+00384    1222  50 CF         BVC return7
+00385    far8:
+00386    1224  70 D9         BVS return8
+00387    
+00388    trampoline: ; testing a JSR but let's test an RTI too while we're here
+00389    1226  20 34 12      JSR rtitest
+00390     ; we'll place an RTS and jump to it
+00391    1229  AD 33 12      LDA returnop
+00392    122C  A2 00         LDX #0
+00393    122E  81 17         STA (zdummy,X)
+00394    1230  6C 17 00      JMP (zdummy)
+00395    returnop:
+00396    1233  60            RTS
+00397     
+00398    rtitest:
+00399    1234  68            PLA
+00400    1235  18            CLC
+00401    1236  69 01         ADC #1 ; don't bother incrementing the high byte we should be safe
+00402    1238  48            PHA
+00403    1239  48            PHA
+00404    123A  40            RTI
+00405    
+00406    continue:
+00407    123B  A2 00         LDX #0 ; non-page-crossing
+00408    123D  24 17         BIT zdummy
+00409    123F  2C 17 17      BIT dummy
+00410    1242  A4 17         LDY zdummy
+00411    1244  84 17         STY zdummy
+00412    1246  AC 17 17      LDY dummy
+00413    1249  8C 17 17      STY dummy
+00414    124C  B4 17         LDY zdummy,X
+00415    124E  94 17         STY zdummy,X
+00416    1250  BC 17 17      LDY dummy,X
+00417    1253  CA            DEX ; page crossing or wrapping
+00418    1254  B4 17         LDY zdummy,X
+00419    1256  94 17         STY zdummy,X
+00420    1258  BC 17 17      LDY dummy,X
+00421    
+00422    125B  C0 17         CPY #zdummy
+00423    125D  C4 17         CPY zdummy
+00424    125F  CC 17 17      CPY dummy
+00425    1262  E0 17         CPX #zdummy
+00426    1264  E4 17         CPX zdummy
+00427    1266  EC 17 17      CPX dummy
+00428    
+00429    end:
+00430     .DB $bb ; pseudo-op to terminate Kowalski simulator
+00431     
+00432    126A  4C 00 10      JMP start
+00433    
+00434    

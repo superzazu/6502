@@ -12,7 +12,6 @@ typedef uint16_t u16;
 typedef struct m6502 {
     u16 pc; // program counter
     u8 a, x, y, sp; // register A, X, Y and stack pointer
-    int cyc; // cycles count
 
     // flags: carry, zero, interrupt disable, decimal mode,
     // break command, overflow, negative
@@ -20,6 +19,11 @@ typedef struct m6502 {
 
     bool page_crossed; // helper flag to keep track of page crossing
     bool enable_bcd; // helper flag to enable/disable BCD
+    bool m65c02_mode; // helper flag to enable 65C02 emulation
+
+    bool stop, wait; // flags used with STP/WAI 65C02 instructions
+
+    unsigned long cyc; // cycles count
 
     void* userdata; // user custom pointer
     u8 (*read_byte)(void*, u16);
@@ -34,6 +38,5 @@ void m6502_debug_output(m6502* const c);
 void m6502_gen_nmi(m6502* const c);
 void m6502_gen_res(m6502* const c);
 void m6502_gen_irq(m6502* const c);
-void m6502_gen_brk(m6502* const c);
 
 #endif // MOS_6502_M6502_H_

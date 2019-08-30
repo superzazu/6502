@@ -1,5 +1,5 @@
 bin = m6502_tests
-src = m6502.c m6502_tests.c
+src = $(wildcard *.c)
 obj = $(src:.c=.o)
 
 CFLAGS = -g -Wall -Wextra -O2 -std=c99 -pedantic
