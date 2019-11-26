@@ -1,7 +1,7 @@
 #include "m6502.h"
 
 // the number of cycles an instruction takes
-static const u8 CYCLES_6502[] = {
+static const uint8_t CYCLES_6502[] = {
     0, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0,
     2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
     6, 6, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0,
@@ -21,7 +21,7 @@ static const u8 CYCLES_6502[] = {
 };
 
 // from http://www.obelisk.demon.co.uk/65C02/reference.html
-static const u8 CYCLES_65C02[] = {
+static const uint8_t CYCLES_65C02[] = {
     0, 6, 0, 0, 5, 3, 5, 0, 3, 2, 2, 0, 6, 4, 6, 0,
     2, 5, 5, 0, 5, 4, 6, 0, 2, 4, 2, 0, 6, 4, 7, 0,
     6, 6, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0,
@@ -41,7 +41,7 @@ static const u8 CYCLES_65C02[] = {
 };
 
 // the number of additional cycles an instruction takes if a page is crossed
-static const u8 INSTRUCTIONS_PAGE_CROSSED_CYCLES[] = {
+static const uint8_t INSTRUCTIONS_PAGE_CROSSED_CYCLES[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
     1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
@@ -60,133 +60,132 @@ static const u8 INSTRUCTIONS_PAGE_CROSSED_CYCLES[] = {
     1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1
 };
 
-static const u16 STACK_START_ADDR = 0x100;
-
+static const uint16_t STACK_START_ADDR = 0x100;
 
 // memory helpers (the only functions to use read_byte and write_byte
 // function pointers)
 
 // reads a byte from memory
-static inline u8 m6502_rb(m6502* const c, u16 addr) {
+static inline uint8_t m6502_rb(m6502* const c, uint16_t addr) {
     return c->read_byte(c->userdata, addr);
 }
 
 // reads a word from memory
-static inline u16 m6502_rw(m6502* const c, u16 addr) {
+static inline uint16_t m6502_rw(m6502* const c, uint16_t addr) {
     return (c->read_byte(c->userdata, addr + 1) << 8) |
             c->read_byte(c->userdata, addr);
 }
 
 // emulates a 6502 bug where the low byte wrapped without incrementing
 // the high byte
-static inline u16 m6502_rw_bug(m6502* const c, u16 addr) {
+static inline uint16_t m6502_rw_bug(m6502* const c, uint16_t addr) {
     // the buggy read word has been fixed in the 65C02
     if (c->m65c02_mode) {
         return m6502_rw(c, addr);
     }
 
-    u16 hi_addr = (addr & 0xFF00) | ((addr + 1) & 0xFF);
+    uint16_t hi_addr = (addr & 0xFF00) | ((addr + 1) & 0xFF);
     return (c->read_byte(c->userdata, hi_addr) << 8) |
             c->read_byte(c->userdata, addr);
 }
 
 // writes a byte to memory
-static inline void m6502_wb(m6502* const c, u16 addr, u8 val) {
+static inline void m6502_wb(m6502* const c, uint16_t addr, uint8_t val) {
     c->write_byte(c->userdata, addr, val);
 }
 
 // addressing modes helpers
-static inline u16 IMM(m6502* const c) { // immediate
+static inline uint16_t IMM(m6502* const c) { // immediate
     return c->pc++;
 }
 
-static inline u8 ZPG(m6502* const c) { // zero page
+static inline uint8_t ZPG(m6502* const c) { // zero page
     return m6502_rb(c, c->pc++);
 }
 
-static inline u8 ZPX(m6502* const c) { // zero page + x
+static inline uint8_t ZPX(m6502* const c) { // zero page + x
     return m6502_rb(c, c->pc++) + c->x;
 }
 
-static inline u8 ZPY(m6502* const c) { // zero page + y
+static inline uint8_t ZPY(m6502* const c) { // zero page + y
     return m6502_rb(c, c->pc++) + c->y;
 }
 
-static inline u16 ABS(m6502* const c) { // absolute
-    u16 addr = m6502_rw(c, c->pc);
+static inline uint16_t ABS(m6502* const c) { // absolute
+    uint16_t addr = m6502_rw(c, c->pc);
     c->pc += 2;
     return addr;
 }
 
-static inline u16 ABX(m6502* const c) { // absolute + x
-    u16 addr = ABS(c) + c->x;
+static inline uint16_t ABX(m6502* const c) { // absolute + x
+    uint16_t addr = ABS(c) + c->x;
     c->page_crossed = ((addr - c->x) & 0xFF00) != (addr & 0xFF00);
     return addr;
 }
 
-static inline u16 ABY(m6502* const c) { // absolute + y
-    u16 addr = ABS(c) + c->y;
+static inline uint16_t ABY(m6502* const c) { // absolute + y
+    uint16_t addr = ABS(c) + c->y;
     c->page_crossed = ((addr - c->y) & 0xFF00) != (addr & 0xFF00);
     return addr;
 }
 
-static inline u16 INX(m6502* const c) { // indexed indirect x
+static inline uint16_t INX(m6502* const c) { // indexed indirect x
     return m6502_rw_bug(c, (m6502_rb(c, c->pc++) + c->x) & 0xFF);
 }
 
-static inline u16 INY(m6502* const c) { // indirect indexed y
-    u16 addr = m6502_rw_bug(c, m6502_rb(c, c->pc++)) + c->y;
+static inline uint16_t INY(m6502* const c) { // indirect indexed y
+    uint16_t addr = m6502_rw_bug(c, m6502_rb(c, c->pc++)) + c->y;
     c->page_crossed = ((addr - c->y) & 0xFF00) != (addr & 0xFF00);
     return addr;
 }
 
-static inline s8 REL(m6502* const c) { // relative
-    return (s8) m6502_rb(c, c->pc++);
+static inline int8_t REL(m6502* const c) { // relative
+    return (int8_t) m6502_rb(c, c->pc++);
 }
 
-static inline u16 INZ(m6502* const c) { // indirect zero page (65C02)
-    u16 addr = m6502_rw(c, m6502_rb(c, c->pc++));
+static inline uint16_t INZ(m6502* const c) { // indirect zero page (65C02)
+    uint16_t addr = m6502_rw(c, m6502_rb(c, c->pc++));
     return addr;
 }
 
 // stack
 
 // pushes a byte onto the stack
-static inline void push_byte(m6502* const c, u8 val) {
-    u16 addr = STACK_START_ADDR + c->sp--;
+static inline void push_byte(m6502* const c, uint8_t val) {
+    uint16_t addr = STACK_START_ADDR + c->sp--;
     m6502_wb(c, addr, val);
 }
 
 // pushes a word onto the stack
-static inline void push_word(m6502* const c, u16 val) {
-    u16 addr = STACK_START_ADDR + c->sp;
+static inline void push_word(m6502* const c, uint16_t val) {
+    uint16_t addr = STACK_START_ADDR + c->sp;
     m6502_wb(c, addr, val >> 8);
     m6502_wb(c, addr - 1, val & 0xFF);
     c->sp -= 2;
 }
 
 // pulls a byte from the stack
-static inline u8 pull_byte(m6502* const c) {
-    u16 addr = STACK_START_ADDR + ++c->sp;
+static inline uint8_t pull_byte(m6502* const c) {
+    uint16_t addr = STACK_START_ADDR + ++c->sp;
     return m6502_rb(c, addr);
 }
 
 // pulls a word from the stack
-static inline u16 pull_word(m6502* const c) {
+static inline uint16_t pull_word(m6502* const c) {
     return pull_byte(c) | (pull_byte(c) << 8);
 }
 
 // flag helpers
 
 // helper to quickly set Z/N flags according to a byte value
-static inline void set_zn(m6502* const c, u8 val) {
+static inline void set_zn(m6502* const c, uint8_t val) {
     c->zf = val == 0;
     c->nf = val >> 7;
 }
 
 // returns flags status in one byte
-static inline u8 get_flags(m6502* const c) {
-    u8 flags = 0;
+static inline uint8_t get_flags(m6502* const c) {
+    uint8_t flags = 0;
     flags |= c->nf << 7;
     flags |= c->vf << 6;
     flags |= 1 << 5; // bit 5 is always set
@@ -198,7 +197,7 @@ static inline u8 get_flags(m6502* const c) {
     return flags;
 }
 
-static inline void set_flags(m6502* const c, u8 val) {
+static inline void set_flags(m6502* const c, uint8_t val) {
     c->nf = (val >> 7) & 1;
     c->vf = (val >> 6) & 1;
     c->df = (val >> 3) & 1;
@@ -210,7 +209,7 @@ static inline void set_flags(m6502* const c, u8 val) {
 
 // interrupts
 
-static inline void interrupt(m6502* const c, u16 vector) {
+static inline void interrupt(m6502* const c, uint16_t vector) {
     push_word(c, c->pc);
     push_byte(c, get_flags(c));
     c->pc = m6502_rw(c, vector);
@@ -226,7 +225,7 @@ static inline void interrupt(m6502* const c, u16 vector) {
 // opcodes - storage
 
 // loads a register with a byte
-static inline void m6502_ldr(m6502* const c, u8* const reg, u16 addr) {
+static inline void m6502_ldr(m6502* const c, uint8_t* const reg, uint16_t addr) {
     *reg = m6502_rb(c, addr);
     set_zn(c, *reg);
 }
@@ -234,24 +233,24 @@ static inline void m6502_ldr(m6502* const c, u8* const reg, u16 addr) {
 // opcodes - math
 
 // adds a byte (+ carry flag) to the accumulator
-static inline void m6502_adc(m6502* const c, u16 addr) {
-    const u8 val = m6502_rb(c, addr);
+static inline void m6502_adc(m6502* const c, uint16_t addr) {
+    const uint8_t val = m6502_rb(c, addr);
 
     if (c->enable_bcd && c->df) {
         // decimal ADC
-        const u8 cy = c->cf;
+        const uint8_t cy = c->cf;
 
         c->nf = 0;
         c->vf = 0;
         c->zf = 0;
         c->cf = 0;
 
-        u8 al = (c->a & 0xF) + (val & 0xF) + cy;
+        uint8_t al = (c->a & 0xF) + (val & 0xF) + cy;
         if (al > 9) {
             al += 0x06;
         }
 
-        u8 ah = (c->a >> 4) + (val >> 4) + (al > 0xF);
+        uint8_t ah = (c->a >> 4) + (val >> 4) + (al > 0xF);
 
         c->vf = ~(c->a ^ val) & (c->a ^ (ah << 4)) & 0x80;
 
@@ -280,7 +279,7 @@ static inline void m6502_adc(m6502* const c, u16 addr) {
     }
     else {
         // binary ADC
-        const u16 result = c->a + val + c->cf;
+        const uint16_t result = c->a + val + c->cf;
 
         set_zn(c, result & 0xFF);
         c->vf = (~(c->a ^ val) & (c->a ^ result) & 0x80);
@@ -291,26 +290,26 @@ static inline void m6502_adc(m6502* const c, u16 addr) {
 }
 
 // substracts a byte (+ *not* carry flag) to the accumulator
-static inline void m6502_sbc(m6502* const c, u16 addr) {
-    const u8 val = m6502_rb(c, addr);
+static inline void m6502_sbc(m6502* const c, uint16_t addr) {
+    const uint8_t val = m6502_rb(c, addr);
 
     if (c->enable_bcd && c->df) {
         // decimal ADC
-        const u8 cy = !c->cf;
+        const uint8_t cy = !c->cf;
 
         c->nf = 0;
         c->vf = 0;
         c->zf = 0;
         c->cf = 0;
 
-        const u16 result = c->a - val - cy;
+        const uint16_t result = c->a - val - cy;
 
-        u8 al = (c->a & 0xF) - (val & 0xF) - cy;
+        uint8_t al = (c->a & 0xF) - (val & 0xF) - cy;
         if (al >> 7) {
             al -= 0x06;
         }
 
-        u8 ah = (c->a >> 4) - (val >> 4) - (al >> 7);
+        uint8_t ah = (c->a >> 4) - (val >> 4) - (al >> 7);
 
         if ((c->a ^ val) & (c->a ^ result) & 0x80) {
             c->vf = 1;
@@ -338,7 +337,7 @@ static inline void m6502_sbc(m6502* const c, u16 addr) {
     }
     else {
         // binary ADC
-        const u16 result = c->a - val - !c->cf;
+        const uint16_t result = c->a - val - !c->cf;
 
         set_zn(c, result & 0xFF);
         c->vf = (c->a ^ val) & (c->a ^ result) & 0x80;
@@ -349,101 +348,101 @@ static inline void m6502_sbc(m6502* const c, u16 addr) {
 }
 
 // increments a byte and returns the incremented value
-static inline u8 m6502_inc(m6502* const c, u8 val) {
-    u8 result = val + 1;
+static inline uint8_t m6502_inc(m6502* const c, uint8_t val) {
+    uint8_t result = val + 1;
     set_zn(c, result);
     return result;
 }
 
 // increments a byte in memory
-static inline void m6502_inc_addr(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_inc_addr(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     m6502_wb(c, addr, m6502_inc(c, val));
 }
 
 // increments a register
-static inline void m6502_inr(m6502* const c, u8* const reg) {
+static inline void m6502_inr(m6502* const c, uint8_t* const reg) {
     *reg = m6502_inc(c, *reg);
 }
 
 // decrements a byte and returns the decremented value
-static inline u8 m6502_dec(m6502* const c, u8 val) {
-    u8 result = val - 1;
+static inline uint8_t m6502_dec(m6502* const c, uint8_t val) {
+    uint8_t result = val - 1;
     set_zn(c, result);
     return result;
 }
 
 // decrements a byte in memory
-static inline void m6502_dec_addr(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_dec_addr(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     m6502_wb(c, addr, m6502_dec(c, val));
 }
 
 // decrements a register
-static inline void m6502_der(m6502* const c, u8* const reg) {
+static inline void m6502_der(m6502* const c, uint8_t* const reg) {
     *reg = m6502_dec(c, *reg);
 }
 
 // opcodes - bitwise
 
 // executes a logical AND between the accumulator and a byte in memory
-static inline void m6502_and(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_and(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     c->a &= val;
     set_zn(c, c->a);
 }
 
 // shifts left the contents of a byte and returns it
-static inline u8 m6502_asl(m6502* const c, u8 val) {
-    u8 result = val << 1;
+static inline uint8_t m6502_asl(m6502* const c, uint8_t val) {
+    uint8_t result = val << 1;
     c->cf = val >> 7;
     set_zn(c, result);
     return result;
 }
 
 // shifts left the contents of a byte in memory
-static inline void m6502_asl_addr(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_asl_addr(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     m6502_wb(c, addr, m6502_asl(c, val));
 }
 
 // sets the Z flag as though the value at addr were ANDed with register A
-static inline void m6502_bit(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_bit(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     c->vf = (val >> 6) & 1;
     c->zf = (val & c->a) == 0;
     c->nf = val >> 7;
 }
 
 // executes an exclusive OR on register A and a byte in memory
-static inline void m6502_eor(m6502* const c, u16 addr) {
+static inline void m6502_eor(m6502* const c, uint16_t addr) {
     c->a ^= m6502_rb(c, addr);
     set_zn(c, c->a);
 }
 
 // shifts right the contents of a byte and returns it
-static inline u8 m6502_lsr(m6502* const c, u8 val) {
-    u8 result = val >> 1;
+static inline uint8_t m6502_lsr(m6502* const c, uint8_t val) {
+    uint8_t result = val >> 1;
     c->cf = val & 1;
     set_zn(c, result);
     return result;
 }
 
 // shifts right the contents of a byte in memory
-static inline void m6502_lsr_addr(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_lsr_addr(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     m6502_wb(c, addr, m6502_lsr(c, val));
 }
 
 // executes an inclusive OR on register A and a byte in memory
-static inline void m6502_ora(m6502* const c, u16 addr) {
+static inline void m6502_ora(m6502* const c, uint16_t addr) {
     c->a |= m6502_rb(c, addr);
     set_zn(c, c->a);
 }
 
 // rotates left a byte and returns the rotated value
-static inline u8 m6502_rol(m6502* const c, u8 val) {
-    u8 result = val << 1;
+static inline uint8_t m6502_rol(m6502* const c, uint8_t val) {
+    uint8_t result = val << 1;
     result |= c->cf;
     c->cf = val >> 7;
     set_zn(c, result);
@@ -451,14 +450,14 @@ static inline u8 m6502_rol(m6502* const c, u8 val) {
 }
 
 // rotates left a byte in memory
-static inline void m6502_rol_addr(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_rol_addr(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     m6502_wb(c, addr, m6502_rol(c, val));
 }
 
 // rotates right a byte and returns the rotated value
-static inline u8 m6502_ror(m6502* const c, u8 val) {
-    u8 result = val >> 1;
+static inline uint8_t m6502_ror(m6502* const c, uint8_t val) {
+    uint8_t result = val >> 1;
     result |= c->cf << 7;
     c->cf = val & 1;
     set_zn(c, result);
@@ -466,21 +465,21 @@ static inline u8 m6502_ror(m6502* const c, u8 val) {
 }
 
 // rotates right a byte in memory
-static inline void m6502_ror_addr(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_ror_addr(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     m6502_wb(c, addr, m6502_ror(c, val));
 }
 
 // test and resets bits
-static inline void m6502_trb(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_trb(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     c->zf = (val & c->a) == 0;
     m6502_wb(c, addr, val & ~c->a);
 }
 
 // test and set bits
-static inline void m6502_tsb(m6502* const c, u16 addr) {
-    u8 val = m6502_rb(c, addr);
+static inline void m6502_tsb(m6502* const c, uint16_t addr) {
+    uint8_t val = m6502_rb(c, addr);
     c->zf = (val & c->a) == 0;
     m6502_wb(c, addr, val | c->a);
 }
@@ -488,7 +487,7 @@ static inline void m6502_tsb(m6502* const c, u16 addr) {
 // opcodes - branch
 
 // adds to PC a *signed* byte if condition is true.
-static inline void m6502_branch(m6502* const c, s8 addr, bool condition) {
+static inline void m6502_branch(m6502* const c, int8_t addr, bool condition) {
     if (condition) {
         if ((c->pc & 0xFF00) != ((c->pc + addr) & 0xFF00)) {
             c->page_crossed = 1;
@@ -501,12 +500,12 @@ static inline void m6502_branch(m6502* const c, s8 addr, bool condition) {
 // opcodes - jump
 
 // jumps to an address
-static inline void m6502_jmp(m6502* const c, const u16 addr) {
+static inline void m6502_jmp(m6502* const c, const uint16_t addr) {
     c->pc = addr;
 }
 
 // jumps to a subroutine
-static inline void m6502_jsr(m6502* const c, u16 addr) {
+static inline void m6502_jsr(m6502* const c, uint16_t addr) {
     push_word(c, c->pc - 1);
     c->pc = addr;
 }
@@ -525,14 +524,14 @@ static inline void m6502_rts(m6502* const c) {
 // opcodes - registers
 
 // compares the value of a register with another byte in memory
-static inline void m6502_cmp(m6502* const c, u16 addr, u8 reg_value) {
-    u8 val = m6502_rb(c, addr);
-    u8 result = reg_value - val;
+static inline void m6502_cmp(m6502* const c, uint16_t addr, uint8_t reg_value) {
+    uint8_t val = m6502_rb(c, addr);
+    uint8_t result = reg_value - val;
     c->cf = reg_value >= val;
     set_zn(c, result);
 }
 
-static inline void execute_m65c02_opcode(m6502* const c, u8 opcode) {
+static inline void execute_m65c02_opcode(m6502* const c, uint8_t opcode) {
     switch (opcode) {
     case 0x80: m6502_branch(c, REL(c), 1); break; // BRA REL
 
@@ -555,9 +554,9 @@ static inline void execute_m65c02_opcode(m6502* const c, u8 opcode) {
     // BBR
     case 0x0F: case 0x1F: case 0x2F: case 0x3F:
     case 0x4F: case 0x5F: case 0x6F: case 0x7F: {
-        const u8 bit_no = opcode >> 4;
-        const u8 val = m6502_rb(c, ZPG(c));
-        const s8 addr = REL(c);
+        const uint8_t bit_no = opcode >> 4;
+        const uint8_t val = m6502_rb(c, ZPG(c));
+        const int8_t addr = REL(c);
 
         m6502_branch(c, addr, ((val >> bit_no) & 1) == 0);
     } break;
@@ -565,9 +564,9 @@ static inline void execute_m65c02_opcode(m6502* const c, u8 opcode) {
     // BBS
     case 0x8F: case 0x9F: case 0xAF: case 0xBF:
     case 0xCF: case 0xDF: case 0xEF: case 0xFF: {
-        const u8 bit_no = (opcode >> 4) - 8;
-        const u8 val = m6502_rb(c, ZPG(c));
-        const s8 addr = REL(c);
+        const uint8_t bit_no = (opcode >> 4) - 8;
+        const uint8_t val = m6502_rb(c, ZPG(c));
+        const int8_t addr = REL(c);
 
         m6502_branch(c, addr, ((val >> bit_no) & 1) == 1);
     } break;
@@ -575,9 +574,9 @@ static inline void execute_m65c02_opcode(m6502* const c, u8 opcode) {
     // RMB
     case 0x07: case 0x17: case 0x27: case 0x37:
     case 0x47: case 0x57: case 0x67: case 0x77: {
-        const u8 bit_no = opcode >> 4;
-        const u8 addr = ZPG(c);
-        u8 val = m6502_rb(c, addr);
+        const uint8_t bit_no = opcode >> 4;
+        const uint8_t addr = ZPG(c);
+        uint8_t val = m6502_rb(c, addr);
         val &= ~(1UL << bit_no);
         m6502_wb(c, addr, val);
     } break;
@@ -585,9 +584,9 @@ static inline void execute_m65c02_opcode(m6502* const c, u8 opcode) {
     // SMB
     case 0x87: case 0x97: case 0xA7: case 0xB7:
     case 0xC7: case 0xD7: case 0xE7: case 0xF7: {
-        const u8 bit_no = (opcode >> 4) - 8;
-        const u8 addr = ZPG(c);
-        u8 val = m6502_rb(c, addr);
+        const uint8_t bit_no = (opcode >> 4) - 8;
+        const uint8_t addr = ZPG(c);
+        uint8_t val = m6502_rb(c, addr);
         val |= (1 << bit_no);
         m6502_wb(c, addr, val);
     } break;
@@ -693,7 +692,7 @@ void m6502_step(m6502* const c) {
         return;
     }
 
-    const u8 opcode = m6502_rb(c, c->pc++);
+    const uint8_t opcode = m6502_rb(c, c->pc++);
     if (c->m65c02_mode) {
             c->cyc += CYCLES_65C02[opcode];
     }
@@ -927,7 +926,7 @@ void m6502_debug_output(m6502* const c) {
         m6502_rb(c, c->pc + 2));
 
     // the following line helps to compare with Nintendulator logs
-    const u16 cyc = (c->cyc * 3) % 341;
+    const uint16_t cyc = (c->cyc * 3) % 341;
 
     printf("SP:%02X A:%02X X:%02X Y:%02X P:%02X (%s) CYC:%d\n",
         c->sp, c->a, c->x, c->y, get_flags(c), flags, cyc);

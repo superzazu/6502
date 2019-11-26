@@ -7,19 +7,17 @@ static m6502 cpu;
 
 // memory callbacks
 #define MEMORY_SIZE 0x10000
-static u8* memory;
+static uint8_t* memory;
 
-static u8 rb(void* userdata, const u16 addr) {
-    (void) userdata;
+static uint8_t rb(void* userdata, uint16_t addr) {
     return memory[addr];
 }
 
-static void wb(void* userdata, const u16 addr, const u8 val) {
-    (void) userdata;
+static void wb(void* userdata, uint16_t addr, uint8_t val) {
     memory[addr] = val;
 }
 
-static int load_file_into_memory(const char* filename, u16 addr) {
+static int load_file_into_memory(const char* filename, uint16_t addr) {
     FILE* f = fopen(filename, "rb");
     if (f == NULL) {
         fprintf(stderr, "error: can't open file '%s'.\n", filename);
@@ -37,7 +35,7 @@ static int load_file_into_memory(const char* filename, u16 addr) {
     }
 
     // copying the bytes in the memory:
-    size_t result = fread(&memory[addr], sizeof(u8), file_size, f);
+    size_t result = fread(&memory[addr], sizeof(uint8_t), file_size, f);
     if (result != file_size) {
         fprintf(stderr, "error: while reading file '%s'\n", filename);
         return 1;
@@ -96,7 +94,7 @@ static int test_6502_functional_test(unsigned long expected_cyc) {
     cpu.pc = 0x400;
 
     int nb_instructions_executed = 0;
-    u16 previous_pc = 0;
+    uint16_t previous_pc = 0;
     while (true) {
         m6502_step(&cpu);
 
@@ -202,7 +200,7 @@ static int test_65C02_extended_opcodes_test(unsigned long expected_cyc) {
     cpu.m65c02_mode = 1;
 
     int nb_instructions_executed = 0;
-    u16 previous_pc = 0;
+    uint16_t previous_pc = 0;
     while (true) {
         m6502_step(&cpu);
 
@@ -240,7 +238,7 @@ static int test_6502_interrupt_test(unsigned long expected_cyc) {
     cpu.pc = 0x400; // actually start at 0x3f5?
 
     int nb_instructions_executed = 0;
-    u16 previous_pc = 0;
+    uint16_t previous_pc = 0;
     while (true) {
         // m6502_debug_output(&cpu);
         m6502_step(&cpu);
@@ -322,7 +320,7 @@ static int test_65C02_decimal_test(unsigned long expected_cyc) {
 //     cpu.m65c02_mode = 1;
 
 //     int nb_instructions_executed = 0;
-//     u16 previous_pc = 0;
+//     uint16_t previous_pc = 0;
 //     while (true) {
 //         // m6502_debug_output(&cpu);
 //         m6502_step(&cpu);
