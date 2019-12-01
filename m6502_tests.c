@@ -31,6 +31,7 @@ static int load_file_into_memory(const char* filename, uint16_t addr) {
 
     if (file_size + addr > MEMORY_SIZE) {
         fprintf(stderr, "error: file %s can't fit in memory.\n", filename);
+        fclose(f);
         return 1;
     }
 
@@ -38,6 +39,7 @@ static int load_file_into_memory(const char* filename, uint16_t addr) {
     size_t result = fread(&memory[addr], sizeof(uint8_t), file_size, f);
     if (result != file_size) {
         fprintf(stderr, "error: while reading file '%s'\n", filename);
+        fclose(f);
         return 1;
     }
 
