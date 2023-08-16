@@ -257,6 +257,7 @@ static inline void m6502_adc(m6502* const c, uint16_t addr) {
         if (ah > 9) {
             ah += 0x06;
         }
+      
         if (ah > 0xF) {
             c->cf = 1;
         }
@@ -952,4 +953,15 @@ void m6502_gen_irq(m6502* const c) {
         c->bf = 0;
         interrupt(c, 0xFFFE);
     }
+}
+
+void m6502_interrupt_handler(m6502* const c) {
+  if ((c->irq_status & 0x2) == 0x2) {
+    m6502_gen_nmi(c);
+    c->irq_status &= ~0x2;
+  }
+  if (!c->idf && (c->irq_status & 0x1) == 0x1) {
+    m6502_gen_irq(c);
+    c->irq_status &= ~0x1;
+  }
 }

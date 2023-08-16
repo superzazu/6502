@@ -24,6 +24,8 @@ typedef struct m6502 {
     bool m65c02_mode : 1; // helper flag to enable 65C02 emulation
 
     bool stop : 1, wait : 1; // flags used with STP/WAI 65C02 instructions
+
+    bool irq_status; // contains the irq state (for the klaus dormman 6502 interrupt test)
 } m6502;
 
 void m6502_init(m6502* const c);
@@ -34,5 +36,7 @@ void m6502_debug_output(m6502* const c);
 void m6502_gen_nmi(m6502* const c);
 void m6502_gen_res(m6502* const c);
 void m6502_gen_irq(m6502* const c);
+
+void m6502_interrupt_handler(m6502* const c);
 
 #endif // M6502_M6502_H_
