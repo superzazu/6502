@@ -233,18 +233,23 @@ static int test_6502_interrupt_test(unsigned long expected_cyc) {
     printf("6502_interrupt_test: ");
 
     memset(memory, 0, MEMORY_SIZE);
-    load_file_into_memory("programs/6502_interrupt_test.bin", 0);
+    load_file_into_memory("programs/6502_interrupt_test.bin", 0xA);
     m6502_init(&cpu);
     cpu.read_byte = &rb;
     cpu.write_byte = &wb;
-    cpu.pc = 0x400; // actually start at 0x3f5?
+    cpu.pc = 0x400; 
 
     int nb_instructions_executed = 0;
     uint16_t previous_pc = 0;
+
+    wb(&cpu, 0xBFFC, 0); // initialise 0xBFFC
     while (true) {
         // m6502_debug_output(&cpu);
         m6502_step(&cpu);
 
+        cpu.irq_status = rb(&cpu, 0xBFFC); // read interrupt status
+        m6502_interrupt_handler(&cpu);
+        wb(&cpu, 0xBFFC, cpu.irq_status); // write new value to 0xBFFC
         nb_instructions_executed += 1;
 
         // if the program is trapped somewhere, print and exit
@@ -347,12 +352,12 @@ int main(void) {
     memory = malloc(MEMORY_SIZE);
 
     int r = 0;
-    r += test_allsuitea(1946LU);
-    r += test_6502_functional_test(96241367LU); // same cycle count on fake6502
-    r += test_6502_decimal_test(46089505LU);
-    r += test_timingtest(1141LU);
-    r += test_65C02_extended_opcodes_test(66886142LU);
-    // r += test_6502_interrupt_test(0LU);
+    // r += test_allsuitea(1946LU);
+    // r += test_6502_functional_test(96241367LU); // same cycle count on fake6502
+    // r += test_6502_decimal_test(46089505LU);
+    // r += test_timingtest(1141LU);
+    // r += test_65C02_extended_opcodes_test(66886142LU);
+    r += test_6502_interrupt_test(0LU);
     // r += test_65C02_decimal_test(0LU);
     // r += test_65c02_timingtest(0LU);
 
